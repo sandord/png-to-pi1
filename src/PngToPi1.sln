@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PngToPi1", "PngToPi1\PngToPi1.csproj", "{0F7491D2-7FDC-49E4-88D6-76575B03E66C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PngToPi1.Tests", "PngToPi1.Tests\PngToPi1.Tests.csproj", "{49088023-1028-4499-84F7-5D5EEEE0318A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0F7491D2-7FDC-49E4-88D6-76575B03E66C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0F7491D2-7FDC-49E4-88D6-76575B03E66C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0F7491D2-7FDC-49E4-88D6-76575B03E66C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0F7491D2-7FDC-49E4-88D6-76575B03E66C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{49088023-1028-4499-84F7-5D5EEEE0318A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{49088023-1028-4499-84F7-5D5EEEE0318A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{49088023-1028-4499-84F7-5D5EEEE0318A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{49088023-1028-4499-84F7-5D5EEEE0318A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
