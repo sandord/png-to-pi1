@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace PngToPi1;
+namespace PngToPi1.Extensions;
 
 public static class StreamExtensions
 {

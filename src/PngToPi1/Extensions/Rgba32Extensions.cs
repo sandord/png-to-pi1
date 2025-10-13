@@ -1,7 +1,7 @@
 ﻿using System;
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace PngToPi1;
+namespace PngToPi1.Extensions;
 
 public static class Rgba32Extensions
 {

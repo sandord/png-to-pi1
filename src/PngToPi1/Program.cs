@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using PngToPi1;
+using PngToPi1.Extensions;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 using Spectre.Console;
@@ -16,14 +17,15 @@ public static class Program
         var rootCommand = new RootCommand();
 
         var buildCommand =
-            new Command("convert", "Converts a 320x200 16 indexed color PNG file to an Atari ST PI1 file.");
+            new Command("convert",
+                "Converts a 320x200 indexed PNG file to an Atari ST PI1 file. The input file must have a 16-color palette with an extra entry for transparency at the beginning.");
 
-        var inputFileArgument = new Argument<FileInfo>(name: "input")
+        var inputFileArgument = new Argument<string>(name: "input")
         {
             Description = "The path to the input PNG file."
         };
 
-        var outputFileArgument = new Argument<FileInfo>(name: "output")
+        var outputFileArgument = new Argument<string>(name: "output")
         {
             Description = "The path to the output PI1 file."
         };
@@ -32,22 +34,18 @@ public static class Program
         buildCommand.Arguments.Add(outputFileArgument);
 
         buildCommand.SetAction(async result => await Convert(
-            result.GetRequiredValue(inputFileArgument).FullName.Trim(),
-            result.GetRequiredValue(outputFileArgument).FullName.Trim()));
+            inputFilePath: result.GetRequiredValue(inputFileArgument).Trim(),
+            outputFilePath: result.GetRequiredValue(outputFileArgument).Trim()));
 
         rootCommand.Subcommands.Add(buildCommand);
 
         var result = rootCommand.Parse(args);
         return await result.InvokeAsync();
     }
-    
+
     private static async Task Convert(string inputFilePath, string outputFilePath)
     {
-        var workingDirectory = Path.GetFullPath(Path.GetDirectoryName(inputFilePath) ?? ".");
-
-        AnsiConsole.WriteLine($"Working directory is '{workingDirectory}'");
-        AnsiConsole.WriteLine($"Reading input from '{Path.GetFileName(inputFilePath)}'");
-        AnsiConsole.WriteLine();
+        AnsiConsole.WriteLine($"Reading input from '{inputFilePath}'");
 
         var palette = PngPaletteExtractor.ExtractPalette(inputFilePath)
             .Select(x => new Rgba32(x.R, x.G, x.B).ToAtariStColor())

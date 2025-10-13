@@ -22,4 +22,10 @@
       <ProjectReference Include="..\PngToPi1\PngToPi1.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Update="TestFiles\*.*">
+        <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      </None>
+    </ItemGroup>
+
 </Project>

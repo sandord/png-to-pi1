@@ -2,7 +2,7 @@
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
-namespace PngToPi1;
+namespace PngToPi1.Extensions;
 
 public static class ImageExtensions
 {
@@ -17,7 +17,7 @@ public static class ImageExtensions
         int width,
         int height,
         ushort[] palette,
-        byte translucencyIndex = 0,
+        byte transparencyPaletteIndex = 0,
         byte fallbackPaletteIndex = 1)
     {
         const byte bitPlaneWordWidth = 16;
@@ -48,7 +48,7 @@ public static class ImageExtensions
                     pixel.ToRgba32(ref rgba32);
 
                     var colorIndex = rgba32.A == 0
-                        ? translucencyIndex
+                        ? transparencyPaletteIndex
                         : rgba32.GetAtariStPaletteIndex(palette, fallbackPaletteIndex);
 
                     for (var p = 0; p < planeCount; p++)
