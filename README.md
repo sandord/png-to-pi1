@@ -12,8 +12,9 @@ Options:
   --version       Show version information
 
 Commands:
-  convert <input> <output>  Converts a 320x200 indexed PNG file to an Atari ST PI1 file. The input file must have a 
-                            16-color palette with an extra entry for transparency at the beginning.
+  convert <input> <output>  Converts a 320x200 indexed PNG file to an Atari ST PI1 file.
+                            The input file must have a 16-color palette with an extra entry
+                            for transparency at the beginning.
 ```
 
 Example:
