@@ -62,3 +62,14 @@ jobs:
       with:
         name: release-osx-x64
         path: src/publish/osx-x64
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        files: |
+          src/publish/linux-x64/*
+          src/publish/win-x64/*
+          src/publish/osx-x64/*
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
