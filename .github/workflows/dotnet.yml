@@ -33,32 +33,32 @@ jobs:
     needs: build
 
     steps:
-      - uses: actions/checkout@v4
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 9.0.x
-      - name: Publish Linux x64
-        run: dotnet publish -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o ./publish/linux-x64
-        working-directory: ./src
-      - name: Publish Windows x64
-        run: dotnet publish -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o ./publish/win-x64
-        working-directory: ./src
-      - name: Publish macOS x64
-        run: dotnet publish -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true -o ./publish/osx-x64
-        working-directory: ./src
-      - name: Upload Linux artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-linux-x64
-          path: src/publish/linux-x64
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-win-x64
-          path: src/publish/win-x64
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: release-osx-x64
-          path: src/publish/osx-x64
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 9.0.x
+    - name: Publish Linux x64
+      run: dotnet publish PngToPi1/PngToPi1.csproj -c Release -r linux-x64 --self-contained -p:PublishSingleFile=true -o ./publish/linux-x64
+      working-directory: ./src
+    - name: Publish Windows x64
+      run: dotnet publish PngToPi1/PngToPi1.csproj -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o ./publish/win-x64
+      working-directory: ./src
+    - name: Publish macOS x64
+      run: dotnet publish PngToPi1/PngToPi1.csproj -c Release -r osx-x64 --self-contained -p:PublishSingleFile=true -o ./publish/osx-x64
+      working-directory: ./src
+    - name: Upload Linux artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-linux-x64
+        path: src/publish/linux-x64
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-win-x64
+        path: src/publish/win-x64
+    - name: Upload macOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-osx-x64
+        path: src/publish/osx-x64
