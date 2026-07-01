@@ -11,7 +11,8 @@ namespace PngToPi1;
 public static class AtariStPicturePersister
 {
     public static async Task WriteAsPi1(Stream outputStream, Image<Byte4> image, ushort[] palette,
-        byte transparencyPaletteIndex = 0, byte fallbackPaletteIndex = 1)
+        byte transparencyPaletteIndex = 0, byte fallbackPaletteIndex = 1,
+        System.Collections.Generic.List<(byte R, byte G, byte B)>? pngPaletteRgb = null)
     {
         const int width = 320;
         const int height = 200;
@@ -41,13 +42,15 @@ public static class AtariStPicturePersister
             image.Width,
             image.Height,
             palette,
-            transparencyPaletteIndex,
-            fallbackPaletteIndex);
+            transparencyReplacementIndex: 0,
+            fallbackPaletteIndex: 0,
+            pngPaletteRgb: pngPaletteRgb,
+            originalTransparencyIndex: transparencyPaletteIndex);
 
         // Remove transparency entry from the palette.
-        palette = palette.Index().Where(x => x.Index != transparencyPaletteIndex).Select(x => x.Item).ToArray();
+        var finalPalette = palette.Where((item, index) => index != transparencyPaletteIndex).ToArray();
 
-        await WriteOutput(outputStream, palette, bitmapData);
+        await WriteOutput(outputStream, finalPalette, bitmapData);
     }
 
     private static async Task WriteOutput(Stream outputStream, ushort[] palette, byte[] bitmapData)

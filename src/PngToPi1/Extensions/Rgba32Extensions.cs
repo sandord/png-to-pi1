@@ -18,9 +18,21 @@ public static class Rgba32Extensions
         return (ushort)(r << 8 | g << 4 | b);
     }
     
-    public static int GetAtariStPaletteIndex(this Rgba32 rgba32, ushort[] palette, int fallbackPaletteIndex)
+    public static int GetAtariStPaletteIndex(this Rgba32 rgba32, ushort[] palette, int fallbackPaletteIndex, int transparencyPaletteIndex)
     {
-        var index = Array.IndexOf(palette, rgba32.ToAtariStColor());
-        return index == -1 ? fallbackPaletteIndex : index;
+        var target = rgba32.ToAtariStColor();
+        
+        // Prefer a matching palette index that is NOT the transparency index when possible.
+        for (var i = 0; i < palette.Length; i++)
+        {
+            if (palette[i] == target && i != transparencyPaletteIndex)
+            {
+                return i;
+            }
+        }
+        
+        // If no non-transparency match was found, fall back to any match.
+        var any = Array.IndexOf(palette, target);
+        return any == -1 ? fallbackPaletteIndex : any;
     }
 }

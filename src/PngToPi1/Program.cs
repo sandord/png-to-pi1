@@ -47,9 +47,8 @@ public static class Program
     {
         AnsiConsole.WriteLine($"Reading input from '{inputFilePath}'");
 
-        var palette = PngPaletteExtractor.ExtractPalette(inputFilePath)
-            .Select(x => new Rgba32(x.R, x.G, x.B).ToAtariStColor())
-            .ToArray();
+        var pngPalette = PngPaletteExtractor.ExtractPalette(inputFilePath);
+        var palette = pngPalette.Select(x => new Rgba32(x.R, x.G, x.B).ToAtariStColor()).ToArray();
 
         using var image = Image.Load<Byte4>(inputFilePath);
 
@@ -57,6 +56,15 @@ public static class Program
 
         await using var outputStream = File.Open(outputFilePath, FileMode.Create);
 
-        await AtariStPicturePersister.WriteAsPi1(outputStream, image, palette);
+        // Remove index 1 (duplicate black) and use index 0 as fallback for transparent pixels
+        byte transparencyIndex = 1;
+        
+        await AtariStPicturePersister.WriteAsPi1(
+            outputStream, 
+            image, 
+            palette, 
+            transparencyPaletteIndex: transparencyIndex,
+            fallbackPaletteIndex: 0,
+            pngPaletteRgb: pngPalette);
     }
 }

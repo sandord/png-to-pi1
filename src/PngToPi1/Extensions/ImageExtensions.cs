@@ -17,8 +17,10 @@ public static class ImageExtensions
         int width,
         int height,
         ushort[] palette,
-        byte transparencyPaletteIndex = 0,
-        byte fallbackPaletteIndex = 1)
+        byte transparencyReplacementIndex = 0,
+        byte fallbackPaletteIndex = 1,
+        System.Collections.Generic.List<(byte R, byte G, byte B)>? pngPaletteRgb = null,
+        int originalTransparencyIndex = -1)
     {
         const byte bitPlaneWordWidth = 16;
         const byte planeCount = 4;
@@ -47,13 +49,49 @@ public static class ImageExtensions
                     var pixel = image[x + bit, y];
                     pixel.ToRgba32(ref rgba32);
 
-                    var colorIndex = rgba32.A == 0
-                        ? transparencyPaletteIndex
-                        : rgba32.GetAtariStPaletteIndex(palette, fallbackPaletteIndex);
+                    int colorIndex;
+
+                    if (rgba32.A == 0)
+                    {
+                        colorIndex = transparencyReplacementIndex;
+                    }
+                    else if (pngPaletteRgb != null)
+                    {
+                        // Match pixel RGB against original PNG palette to get exact index.
+                        var matchIndex = pngPaletteRgb.FindIndex(p => p.R == rgba32.R && p.G == rgba32.G && p.B == rgba32.B);
+
+                        if (matchIndex >= 0)
+                        {
+                            // Map original PNG palette index to final palette index (account for removed transparency entry)
+                            if (originalTransparencyIndex >= 0 && matchIndex != originalTransparencyIndex)
+                            {
+                                colorIndex = matchIndex < originalTransparencyIndex
+                                    ? matchIndex
+                                    : matchIndex - 1;
+                            }
+                            else if (matchIndex == originalTransparencyIndex)
+                            {
+                                colorIndex = transparencyReplacementIndex;
+                            }
+                            else
+                            {
+                                colorIndex = matchIndex;
+                            }
+                        }
+                        else
+                        {
+                            // Fallback to Atari color lookup if exact RGB match not found.
+                            colorIndex = rgba32.GetAtariStPaletteIndex(palette, fallbackPaletteIndex, transparencyReplacementIndex);
+                        }
+                    }
+                    else
+                    {
+                        colorIndex = rgba32.GetAtariStPaletteIndex(palette, fallbackPaletteIndex, transparencyReplacementIndex);
+                    }
 
                     for (var p = 0; p < planeCount; p++)
                     {
-                        planes[p] |= (ushort)(((colorIndex & (byte)Math.Pow(2, p)) >> p)
+                        planes[p] |= (ushort)(((colorIndex & (1 << p)) >> p)
                                               << (bitPlaneWordWidth - 1 - bit));
                     }
                 }
