@@ -47,8 +47,31 @@ public static class Program
     {
         AnsiConsole.WriteLine($"Reading input from '{inputFilePath}'");
 
-        var pngPalette = PngPaletteExtractor.ExtractPalette(inputFilePath);
+        var (pngPalette, detectedTransparencyIndex, pngPixelIndices, pngWidth, pngHeight) = PngPaletteExtractor.ExtractPalette(inputFilePath);
         var palette = pngPalette.Select(x => new Rgba32(x.R, x.G, x.B).ToAtariStColor()).ToArray();
+
+        // Build final palette (remove transparency entry) and a canonical sorted final palette
+        var finalPalette = palette.Where((item, index) => index != (detectedTransparencyIndex ?? -1)).ToArray();
+        var finalPaletteSorted = finalPalette.OrderBy(p => p).ToArray();
+
+        // Diagnostic output for debugging palette / transparency mapping
+        AnsiConsole.WriteLine($"Detected transparency index: {(detectedTransparencyIndex.HasValue ? detectedTransparencyIndex.Value.ToString() : "<none>")}");
+        AnsiConsole.WriteLine($"Original PNG palette entries: {pngPalette.Count}");
+        AnsiConsole.WriteLine($"Decoded PNG pixel indices available: {(pngPixelIndices != null ? "yes" : "no")}");
+        if (pngPixelIndices != null)
+        {
+            AnsiConsole.WriteLine($"PNG dimensions from extractor: {pngWidth}x{pngHeight}");
+        }
+        AnsiConsole.WriteLine("Final canonical palette (sorted):");
+        foreach (var c in finalPaletteSorted)
+        {
+            AnsiConsole.WriteLine($"  0x{c:X4}");
+        }
+        for (var i = 0; i < pngPalette.Count; i++)
+        {
+            var c = pngPalette[i];
+            AnsiConsole.WriteLine($"  {i}: R={c.R} G={c.G} B={c.B} -> 0x{palette[i]:X4}");
+        }
 
         using var image = Image.Load<Byte4>(inputFilePath);
 
@@ -56,15 +79,23 @@ public static class Program
 
         await using var outputStream = File.Open(outputFilePath, FileMode.Create);
 
-        // Remove index 1 (duplicate black) and use index 0 as fallback for transparent pixels
-        byte transparencyIndex = 1;
-        
+        // Use detected transparency index if available, otherwise default to 0.
+        var transparencyIndex = (byte)(detectedTransparencyIndex ?? 0);
+
+        // The fallback palette index should be the first non-transparency entry. If transparency is 0 use 1, otherwise use 0.
+        var fallbackIndex = (byte)((detectedTransparencyIndex ?? 0) == 0 ? 1 : 0);
+
         await AtariStPicturePersister.WriteAsPi1(
-            outputStream, 
-            image, 
-            palette, 
+            outputStream,
+            image,
+            palette,
+            finalPalette,
+            finalPaletteSorted,
             transparencyPaletteIndex: transparencyIndex,
-            fallbackPaletteIndex: 0,
-            pngPaletteRgb: pngPalette);
+            fallbackPaletteIndex: fallbackIndex,
+            pngPaletteRgb: pngPalette,
+            pngPixelIndices: pngPixelIndices,
+            pngWidth: pngWidth,
+            pngHeight: pngHeight);
     }
 }

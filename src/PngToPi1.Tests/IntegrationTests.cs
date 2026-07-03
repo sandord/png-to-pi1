@@ -2,13 +2,12 @@
 
 public class IntegrationTests
 {
-    [Fact]
-    public async Task MainConvert_ResultsInValidPi1File_WhenProvidingValidPngFile()
+    [Theory]
+    [InlineData("TestFiles/test1.png", "TestFiles/test1.pi1", "test-output.pi1")]
+    [InlineData("TestFiles/test2.png", "TestFiles/test2.pi1", "test-output.pi2")]
+    public async Task MainConvert_ResultsInValidPi1File_WhenProvidingValidPngFile(string inputFile, string referenceFile, string outputFile)
     {
         // Arrange.
-        const string inputFile = "TestFiles/test-1-transparent+16+colors.png";
-        const string outputFile = "test-output.pi1";
-
         var args = new List<string> { "convert", inputFile, outputFile };
 
         // Test.
@@ -17,7 +16,7 @@ public class IntegrationTests
         // Assert.
         Assert.Equal(0, result);
 
-        var expectedBytes = await File.ReadAllBytesAsync("TestFiles/test.pi1");
+        var expectedBytes = await File.ReadAllBytesAsync(referenceFile);
         var actualBytes = await File.ReadAllBytesAsync(outputFile);
 
         // Extract palette (first 32 bytes = 16 colors * 2 bytes each).

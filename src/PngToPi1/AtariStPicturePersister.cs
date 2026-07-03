@@ -10,9 +10,12 @@ namespace PngToPi1;
 
 public static class AtariStPicturePersister
 {
-    public static async Task WriteAsPi1(Stream outputStream, Image<Byte4> image, ushort[] palette,
+    public static async Task WriteAsPi1(Stream outputStream, Image<Byte4> image, ushort[] palette, ushort[] finalPalette, ushort[] finalPaletteSorted,
         byte transparencyPaletteIndex = 0, byte fallbackPaletteIndex = 1,
-        System.Collections.Generic.List<(byte R, byte G, byte B)>? pngPaletteRgb = null)
+        System.Collections.Generic.List<(byte R, byte G, byte B)>? pngPaletteRgb = null,
+        byte[]? pngPixelIndices = null,
+        int pngWidth = 0,
+        int pngHeight = 0)
     {
         const int width = 320;
         const int height = 200;
@@ -36,20 +39,27 @@ public static class AtariStPicturePersister
                 $"Palette size must be {sourcePaletteSize} colors and one extra entry for transparency.", nameof(palette));
         }
 
+        // Use the provided fallback palette index as the replacement for transparent pixels
+        // and pass through the fallback index to the bitmap conversion logic.
         var bitmapData = image.ToAtariStBitmap(
             offsetX: 0,
             offsetY: 0,
             image.Width,
             image.Height,
             palette,
+            // Always use the first color in the final palette as the replacement for transparent pixels.
+            // The final palette is created by removing the transparency entry below, so index 0 in the
+            // bitmap data corresponds to the first non-transparent color.
             transparencyReplacementIndex: 0,
-            fallbackPaletteIndex: 0,
+            fallbackPaletteIndex: fallbackPaletteIndex,
             pngPaletteRgb: pngPaletteRgb,
-            originalTransparencyIndex: transparencyPaletteIndex);
+            originalTransparencyIndex: transparencyPaletteIndex,
+            pngPixelIndices: pngPixelIndices,
+            pngSourceWidth: pngWidth,
+            pngSourceHeight: pngHeight,
+            finalPaletteSorted: finalPaletteSorted);
 
-        // Remove transparency entry from the palette.
-        var finalPalette = palette.Where((item, index) => index != transparencyPaletteIndex).ToArray();
-
+        // finalPaletteSorted already contains the canonical final palette (length 16)
         await WriteOutput(outputStream, finalPalette, bitmapData);
     }
 
