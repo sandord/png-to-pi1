@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -7,178 +8,142 @@ namespace PngToPi1.Extensions;
 public static class ImageExtensions
 {
     /// <summary>
-    /// Converts an image to an Atari ST bitmap. If <paramref name="width"/> is less than 16, the remaining bits are
-    /// padded with 0. This means that the minimum width of the resulting bitmap is 16 pixels.
+    /// Converts an image to interleaved 4-plane Atari ST low-resolution bitmap data.
+    /// The physical width is rounded up to a multiple of 16 pixels; any padding bits are left as 0.
     /// </summary>
-        public static byte[] ToAtariStBitmap(
+    /// <remarks>
+    /// The pixel indices written into the bitplanes are indices into <paramref name="finalPalette"/>,
+    /// i.e. the exact palette written to the PI1 file. When the original indexed-PNG pixel indices are
+    /// available they are remapped directly (dropping the transparency entry); otherwise pixels are
+    /// matched against the final palette by their Atari ST color.
+    /// </remarks>
+    public static byte[] ToAtariStBitmap(
         this Image<Byte4> image,
-        int offsetX,
-        int offsetY,
         int width,
         int height,
-        ushort[] palette,
-        byte transparencyReplacementIndex = 0,
-        byte fallbackPaletteIndex = 1,
-        System.Collections.Generic.List<(byte R, byte G, byte B)>? pngPaletteRgb = null,
-        int originalTransparencyIndex = -1,
+        ushort[] finalPalette,
+        int transparencyIndex,
+        byte transparencyReplacementIndex,
+        List<(byte R, byte G, byte B)>? pngPaletteRgb = null,
         byte[]? pngPixelIndices = null,
         int pngSourceWidth = 0,
-        int pngSourceHeight = 0,
-        ushort[]? finalPaletteSorted = null)
+        int pngSourceHeight = 0)
     {
-            const byte bitPlaneWordWidth = 16;
-            const byte planeCount = 4;
+        const byte bitPlaneWordWidth = 16;
+        const byte planeCount = 4;
 
-            // The physical width of the bitmap must be a multiple of 16.
-            var physicalWidth = (ushort)((width + 15) & ~15);
+        // The physical width of the bitmap must be a multiple of 16.
+        var physicalWidth = (width + 15) & ~15;
 
-            var bitmapData = new byte[height * (physicalWidth * planeCount / 8)];
+        var bitmapData = new byte[height * (physicalWidth * planeCount / 8)];
 
-            var rgba32 = new Rgba32();
-            var outputOffset = 0;
+        // When the source is an indexed PNG we can map each pixel's palette index straight through,
+        // which is exact and preserves the palette ordering. Otherwise we fall back to color matching.
+        var hasPngIndices = pngPixelIndices != null
+            && pngSourceWidth == width
+            && pngSourceHeight == height;
 
-            for (var y = offsetY; y < offsetY + height; y++)
+        var rgba32 = new Rgba32();
+        var outputOffset = 0;
+
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x += bitPlaneWordWidth)
             {
-                for (var x = offsetX; x < offsetX + width; x += bitPlaneWordWidth)
+                var planes = new ushort[planeCount];
+
+                for (var bit = 0; bit < bitPlaneWordWidth; bit++)
                 {
-                    var planes = new ushort[planeCount];
-
-                    for (var bit = 0; bit < Math.Min(physicalWidth, bitPlaneWordWidth); bit++)
+                    if (x + bit >= width)
                     {
-                        if (x + bit >= offsetX + width)
-                        {
-                            continue;
-                        }
+                        continue;
+                    }
 
-                        var pixel = image[x + bit, y];
-                        pixel.ToRgba32(ref rgba32);
+                    int colorIndex;
 
-                        int colorIndex = 0;
+                    if (hasPngIndices)
+                    {
+                        var originalIndex = pngPixelIndices![y * pngSourceWidth + (x + bit)];
+                        colorIndex = MapOriginalIndex(originalIndex, transparencyIndex, transparencyReplacementIndex);
+                    }
+                    else
+                    {
+                        image[x + bit, y].ToRgba32(ref rgba32);
 
-                        // Determine Atari color for this pixel, preferring original PNG indices when available.
-                        ushort atariColorForPixel = 0;
-
-                        if (pngPixelIndices != null && pngSourceWidth == width && pngSourceHeight == height && pngPaletteRgb != null)
-                        {
-                            var origX = x + bit - offsetX;
-                            var origY = y - offsetY;
-                            var origIndex = pngPixelIndices[origY * pngSourceWidth + origX];
-
-                            if (originalTransparencyIndex >= 0 && origIndex == originalTransparencyIndex)
-                            {
-                                // transparent -> replacement color
-                                colorIndex = transparencyReplacementIndex;
-                                atariColorForPixel = new Rgba32(0,0,0).ToAtariStColor();
-                            }
-                            else
-                            {
-                                var rgb = pngPaletteRgb[origIndex];
-                                atariColorForPixel = new Rgba32(rgb.R, rgb.G, rgb.B).ToAtariStColor();
-                            }
-                        }
-                        else if (rgba32.A == 0)
-                        {
-                            colorIndex = transparencyReplacementIndex;
-                            atariColorForPixel = rgba32.ToAtariStColor();
-                        }
-                        else if (pngPaletteRgb != null)
-                        {
-                            // Try to find exact match in original PNG palette by RGB
-                            var matchIndex = pngPaletteRgb.FindIndex(p => p.R == rgba32.R && p.G == rgba32.G && p.B == rgba32.B);
-                            if (matchIndex >= 0)
-                            {
-                                if (originalTransparencyIndex >= 0 && matchIndex == originalTransparencyIndex)
-                                {
-                                    colorIndex = transparencyReplacementIndex;
-                                }
-                                else
-                                {
-                                    var orig = matchIndex;
-                                    atariColorForPixel = new Rgba32(pngPaletteRgb[orig].R, pngPaletteRgb[orig].G, pngPaletteRgb[orig].B).ToAtariStColor();
-                                }
-                            }
-                            else
-                            {
-                                // Nearest by RGB distance
-                                var nearest = -1;
-                                var bestDist = int.MaxValue;
-                                for (var pi = 0; pi < pngPaletteRgb.Count; pi++)
-                                {
-                                    var p = pngPaletteRgb[pi];
-                                    var dr = p.R - rgba32.R;
-                                    var dg = p.G - rgba32.G;
-                                    var db = p.B - rgba32.B;
-                                    var dist = dr * dr + dg * dg + db * db;
-                                    if (dist < bestDist)
-                                    {
-                                        bestDist = dist;
-                                        nearest = pi;
-                                    }
-                                }
-
-                                if (nearest >= 0)
-                                {
-                                    if (nearest == originalTransparencyIndex)
-                                    {
-                                        colorIndex = transparencyReplacementIndex;
-                                    }
-                                    else
-                                    {
-                                        var rgb = pngPaletteRgb[nearest];
-                                        atariColorForPixel = new Rgba32(rgb.R, rgb.G, rgb.B).ToAtariStColor();
-                                    }
-                                }
-                                else
-                                {
-                                    // fallback: use Atari lookup
-                                    var idx = rgba32.GetAtariStPaletteIndex(palette, fallbackPaletteIndex, originalTransparencyIndex);
-                                    colorIndex = originalTransparencyIndex >= 0 ? (idx == originalTransparencyIndex ? transparencyReplacementIndex : (idx > originalTransparencyIndex ? idx - 1 : idx)) : idx;
-                                    atariColorForPixel = rgba32.ToAtariStColor();
-                                }
-                            }
-                        }
-                        else
-                        {
-                            // No png palette info, fallback to Atari lookup
-                            var idx = rgba32.GetAtariStPaletteIndex(palette, fallbackPaletteIndex, originalTransparencyIndex);
-                            colorIndex = originalTransparencyIndex >= 0 ? (idx == originalTransparencyIndex ? transparencyReplacementIndex : (idx > originalTransparencyIndex ? idx - 1 : idx)) : idx;
-                            atariColorForPixel = rgba32.ToAtariStColor();
-                        }
-
-                        // If final canonical palette is provided, map the atari color to its index in that palette.
-                        if (finalPaletteSorted != null)
-                        {
-                            var mapped = Array.IndexOf(finalPaletteSorted, atariColorForPixel);
-                            if (mapped >= 0)
-                            {
-                                colorIndex = mapped;
-                            }
-                        }
-
-                        if (y - offsetY == 1 && x - offsetX == 144)
-                        {
-                            Console.WriteLine($"DBG USE colorIndex={colorIndex} bit={bit} atari=0x{atariColorForPixel:X4}");
-                        }
-
-                        for (var p = 0; p < planeCount; p++)
-                        {
-                            planes[p] |= (ushort)(((colorIndex & (1 << p)) >> p) << (bitPlaneWordWidth - 1 - bit));
-                        }
+                        colorIndex = rgba32.A == 0
+                            ? transparencyReplacementIndex
+                            : NearestPaletteIndex(finalPalette, rgba32.ToAtariStColor());
                     }
 
                     for (var p = 0; p < planeCount; p++)
                     {
-                        bitmapData[outputOffset++] = (byte)(planes[p] >> 8);
-                        bitmapData[outputOffset++] = (byte)(planes[p] & 0xff);
-                    }
-
-                    if (y - offsetY == 1 && x - offsetX == 144)
-                    {
-                        Console.WriteLine($"DBG BLOCK x={x} y={y} planes=[{planes[0]:X4},{planes[1]:X4},{planes[2]:X4},{planes[3]:X4}]");
+                        planes[p] |= (ushort)(((colorIndex >> p) & 1) << (bitPlaneWordWidth - 1 - bit));
                     }
                 }
-            }
 
-            return bitmapData;
+                for (var p = 0; p < planeCount; p++)
+                {
+                    bitmapData[outputOffset++] = (byte)(planes[p] >> 8);
+                    bitmapData[outputOffset++] = (byte)(planes[p] & 0xff);
+                }
+            }
         }
+
+        return bitmapData;
+    }
+
+    /// <summary>
+    /// Maps an original PNG palette index to its index in the final palette, which has the
+    /// transparency entry removed. Transparent pixels are replaced with a solid color index.
+    /// </summary>
+    private static int MapOriginalIndex(int originalIndex, int transparencyIndex, byte transparencyReplacementIndex)
+    {
+        if (transparencyIndex < 0)
+        {
+            return originalIndex;
+        }
+
+        if (originalIndex == transparencyIndex)
+        {
+            return transparencyReplacementIndex;
+        }
+
+        // Every entry after the removed transparency entry shifts down by one.
+        return originalIndex < transparencyIndex ? originalIndex : originalIndex - 1;
+    }
+
+    /// <summary>
+    /// Finds the index of the palette entry closest to <paramref name="target"/> (an Atari ST color).
+    /// </summary>
+    private static int NearestPaletteIndex(ushort[] palette, ushort target)
+    {
+        var exact = Array.IndexOf(palette, target);
+        if (exact >= 0)
+        {
+            return exact;
+        }
+
+        var tr = (target >> 8) & 0x7;
+        var tg = (target >> 4) & 0x7;
+        var tb = target & 0x7;
+
+        var nearest = 0;
+        var bestDistance = int.MaxValue;
+
+        for (var i = 0; i < palette.Length; i++)
+        {
+            var dr = ((palette[i] >> 8) & 0x7) - tr;
+            var dg = ((palette[i] >> 4) & 0x7) - tg;
+            var db = (palette[i] & 0x7) - tb;
+            var distance = dr * dr + dg * dg + db * db;
+
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                nearest = i;
+            }
+        }
+
+        return nearest;
+    }
 }

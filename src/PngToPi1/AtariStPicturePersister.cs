@@ -1,6 +1,6 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Threading.Tasks;
 using PngToPi1.Extensions;
 using SixLabors.ImageSharp;
@@ -10,18 +10,19 @@ namespace PngToPi1;
 
 public static class AtariStPicturePersister
 {
-    public static async Task WriteAsPi1(Stream outputStream, Image<Byte4> image, ushort[] palette, ushort[] finalPalette, ushort[] finalPaletteSorted,
-        byte transparencyPaletteIndex = 0, byte fallbackPaletteIndex = 1,
-        System.Collections.Generic.List<(byte R, byte G, byte B)>? pngPaletteRgb = null,
+    public static async Task WriteAsPi1(
+        Stream outputStream,
+        Image<Byte4> image,
+        ushort[] finalPalette,
+        int transparencyIndex = -1,
+        List<(byte R, byte G, byte B)>? pngPaletteRgb = null,
         byte[]? pngPixelIndices = null,
         int pngWidth = 0,
         int pngHeight = 0)
     {
         const int width = 320;
         const int height = 200;
-        const int planeCount = 4;
-
-        var sourcePaletteSize = (int)Math.Pow(2, planeCount) + 1; // +1 for transparency.
+        const int paletteSize = 16;
 
         if (image.Width != width)
         {
@@ -30,36 +31,27 @@ public static class AtariStPicturePersister
 
         if (image.Height != height)
         {
-            throw new ArgumentException($"Image height must be {width} pixels.", nameof(image));
+            throw new ArgumentException($"Image height must be {height} pixels.", nameof(image));
         }
 
-        if (palette.Length != sourcePaletteSize)
+        if (finalPalette.Length != paletteSize)
         {
-            throw new ArgumentException(
-                $"Palette size must be {sourcePaletteSize} colors and one extra entry for transparency.", nameof(palette));
+            throw new ArgumentException($"Final palette must contain exactly {paletteSize} colors.", nameof(finalPalette));
         }
 
-        // Use the provided fallback palette index as the replacement for transparent pixels
-        // and pass through the fallback index to the bitmap conversion logic.
+        // Index 0 of the final palette is the first non-transparent color; use it to replace
+        // transparent pixels, since the transparency entry has been removed from the palette.
         var bitmapData = image.ToAtariStBitmap(
-            offsetX: 0,
-            offsetY: 0,
-            image.Width,
-            image.Height,
-            palette,
-            // Always use the first color in the final palette as the replacement for transparent pixels.
-            // The final palette is created by removing the transparency entry below, so index 0 in the
-            // bitmap data corresponds to the first non-transparent color.
+            width,
+            height,
+            finalPalette,
+            transparencyIndex: transparencyIndex,
             transparencyReplacementIndex: 0,
-            fallbackPaletteIndex: fallbackPaletteIndex,
             pngPaletteRgb: pngPaletteRgb,
-            originalTransparencyIndex: transparencyPaletteIndex,
             pngPixelIndices: pngPixelIndices,
             pngSourceWidth: pngWidth,
-            pngSourceHeight: pngHeight,
-            finalPaletteSorted: finalPaletteSorted);
+            pngSourceHeight: pngHeight);
 
-        // finalPaletteSorted already contains the canonical final palette (length 16)
         await WriteOutput(outputStream, finalPalette, bitmapData);
     }
 

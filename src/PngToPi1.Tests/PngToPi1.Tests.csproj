@@ -26,6 +26,8 @@
       <None Update="TestFiles\*.*">
         <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       </None>
+      <None Remove="debug_out1.pi1" />
+      <None Remove="out.pi1" />
     </ItemGroup>
 
 </Project>

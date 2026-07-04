@@ -112,11 +112,6 @@ public static class PngPaletteExtractor
         {
             try
             {
-                Console.WriteLine($"DBG: IHDR width={width} height={height} colorType={colorType} bitDepth={bitDepth} idatLen={idatData.Length}");
-                if (idatData.Length >= 2)
-                {
-                    Console.WriteLine($"DBG: idat header bytes: {idatData[0]:X2} {idatData[1]:X2} { (idatData.Length>2? idatData[2].ToString("X2") : "") }");
-                }
                 byte[] raw;
                 try
                 {
@@ -126,7 +121,6 @@ public static class PngPaletteExtractor
                     using var outMs = new MemoryStream();
                     ds.CopyTo(outMs);
                     raw = outMs.ToArray();
-                    Console.WriteLine($"DBG: decompressed raw length = {raw.Length} (direct)");
                 }
                 catch (Exception)
                 {
@@ -140,7 +134,6 @@ public static class PngPaletteExtractor
                         using var outMs2 = new MemoryStream();
                         ds2.CopyTo(outMs2);
                         raw = outMs2.ToArray();
-                        Console.WriteLine($"DBG: decompressed raw length = {raw.Length} (stripped zlib header/trailer)");
                     }
                     else
                     {
@@ -213,9 +206,8 @@ public static class PngPaletteExtractor
                     }
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"DBG: failed to decompress IDAT: {ex.GetType().Name}: {ex.Message}");
                 pixelIndices = null;
             }
         }
