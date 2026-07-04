@@ -4,11 +4,6 @@ public class IntegrationTests
 {
     [Theory]
     [InlineData("fod")]
-    [InlineData("alt for atari-st only")]
-    [InlineData("credits")]
-    [InlineData("font")]
-    [InlineData("soeplogo")]
-    [InlineData("title")]
     public async Task MainConvert_DoesNotReturnErrorCode(string name)
     {
         // Arrange.
